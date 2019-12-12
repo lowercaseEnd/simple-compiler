@@ -1,9 +1,9 @@
 import sys
+import string
 
-#const TAB = ^I;
-#carriage return
+
+
 CR = "\n"
-
 ########error messages
 #report an error
 def error(err):
@@ -47,14 +47,19 @@ def emitLn(string):
   print()
 
 
-
 #initialize program
 def init():
+  initTable()
   getChar()
   skipSpace()
 
 #lookahead char
 look = ""
+table = {}
+
+#init the variable area
+def initTable():
+  table = dict((key, 0) for key in string.ascii_lowercase)
 
 #read new char from input stream
 def getChar():
@@ -84,108 +89,96 @@ def getName():
 
 #get number
 def getNum():
-  value = ""
+  value = 0
   if not isDigit(look):
     expected("Integer")
   while isDigit(look):
-    value += look
+    value = 10 * value + ord(look) - ord("0") 
     getChar()
-  skipSpace()
   return value
 
+#recognize and skip over a newline
+def newLine():
+  if look == "\r":
+    getChar()
+    if look == "\n":
+      getChar()
 
 #skip over leading white space
 def skipSpace():
   while isSpace(look):
     getChar()
 
-##########symbols recognizers
-#recognize and translate an add and subtract
-def add():
-  match("+")
-  term()
-  emitLn("ADD (SP)+,D0")
+#input routine
+def inputRoutine():
+  match("?")
+  table[getName()] = input("Enter id")
 
-def subtract():
-  match("-")
-  term()
-  emitLn("SUB (SP)+,D0")
-  emitLn("NEG D0")
+#output
+def output():
+  match("!")
+  print(table[getName()])
 
-#recognize and translate multiply and divide
-def multiply():
-  match("*")
-  factor()
-  emitLn("MULS (SP)+,D0")
-
-def divide():
-  match("/")
-  factor()
-  emitLn("MOVE (SP)+,D1")
-  emitLn("DIVS D1,D0")
-
-#dict of ops
-plus_minus = {
-  "+": add,
-  "-": subtract
-}
-
-
-
-#######BNF
 #parse and translate an expression
-#<expression> ::= <term> [<addop><term]*
 def expression():
+  value = 0
   if isAddop(look):
-    emitLn("CLR D0")
+    value = 0
   else:
-    term()
+    value = term()
   while isAddop(look):
-    emitLn("MOVE D0,-(SP)")
-    if(look == "+"):
-      add()
-    elif(look == "-"):
-      subtract()
-    # else:
-      # expected("Addop")
-  # global plus_minus
-  # plus_minus.get(look, expected("Addop"))()
+    if look == "+":
+      match("+")
+      value += term()
+    elif look == "-":
+      match("-")
+      value -= term()
+  return value
 
-#parse and translate an assignment statement
+
+  #parse and translate an assignment statement
 def assignment():
   name = getName()
   match("=")
-  expression()
-  emitLn(f"LEA {name}(PC),A0")
-  emitLn("MOVE D0,(A0)")
+  table[name] = expression()
+  # emitLn(f"LEA {name}(PC),A0")
+  # emitLn("MOVE D0,(A0)")
 
 
 #<term> ::= <factor> [<mulop><factor>]*
 #parse and translate a math expression
 def term():
-  factor()
+  value = factor()
+  # factor()
   while look in ["*", "/"]:
-    emitLn("MOVE D0,-(SP)")
+    # emitLn("MOVE D0,-(SP)")
     if(look == "*"):
-      multiply()
+      match("*")
+      value *= factor()
     elif(look == "/"):
-      divide()
+      match("/")
+      value /= factor()
+  return value
     # else:
       # expected("Mulop")
 
 #parse and translate a math factor
 #<factor> ::= <number> |(expression) | variable
 def factor():
+  value = 0
   if look == "(":
     match("(")
-    expression()
+    value = expression()
     match(")")
   elif isAlpha(look):
+    # value = getName()
+    temp = getName()
+    return table[temp]
     # emitLn(f"MOVE {getName()}(PC),D0")
-    ident()
+    # ident()
   else:
-    emitLn(f"MOVE #{getNum()},D0")
-    
+    value = getNum()
+  return value
 #parse and translate an id
 #<ident> ::= <expression>
 def ident():
@@ -201,6 +194,16 @@ def ident():
 # look = "+"
 # print(plus_minus.get(look, "nothing")())
 init()
-assignment()
-if look != CR:
-  expected("Newline")
+while not look == ".":
+  if look == "?":
+    inputRoutine()
+  elif look == "!":
+    output()
+  else:
+    assignment()
+  newLine()
+# assignment()
+# table["a"] = 5
+print(expression())
+# if look != CR:
+  # expected("Newline")

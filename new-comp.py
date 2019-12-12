@@ -4,7 +4,6 @@ import sys
 #carriage return
 CR = "\n"
 
-########error messages
 #report an error
 def error(err):
   print("\n")
@@ -19,11 +18,6 @@ def abort(err):
 def expected(str):
   abort(str + " expected")
 
-
-########recognizers
-#recognize an alphanum
-def isAlphaNum(char):
-  return isAlpha(char) or isDigit(char)
 #recognize an alpha char
 def isAlpha(char):
   return ord(str.lower(char)) in range(ord("a"), ord("z") + 1)
@@ -33,11 +27,6 @@ def isDigit(num):
 #recognize an addop
 def isAddop(char):
   return char in ["+", "-"]
-#recognize white space
-def isSpace(char):
-  return char in(" ", "\t")
-
-#######output
 #output string with a tab
 def emit(string):
   print(f"\t{string}", end = "")
@@ -45,13 +34,9 @@ def emit(string):
 def emitLn(string):
   emit(string)
   print()
-
-
-
 #initialize program
 def init():
   getChar()
-  skipSpace()
 
 #lookahead char
 look = ""
@@ -60,46 +45,30 @@ look = ""
 def getChar():
   global look
   look = input("Enter a new char: ")
-  if look == "":
-    look = "\n"
 
 #match a specific input char
 def match(x):
-  if look != x:
-    expected(f"\'{x}\'")
-  else:
+  if look == x:
     getChar()
-    skipSpace()
+  else:
+    expected(f"\'{x}\'")
 
 #get an id
 def getName():
-  token = ""
   if not isAlpha(look):
     expected("Name")
-  while isAlphaNum(look):
-    token += str.lower(look)
-    getChar()
-  skipSpace()
-  return token
+  name = str.lower(look)
+  getChar()
+  return name
 
 #get number
 def getNum():
-  value = ""
   if not isDigit(look):
     expected("Integer")
-  while isDigit(look):
-    value += look
-    getChar()
-  skipSpace()
-  return value
+  num = look
+  getChar()
+  return num
 
-
-#skip over leading white space
-def skipSpace():
-  while isSpace(look):
-    getChar()
-
-##########symbols recognizers
 #recognize and translate an add and subtract
 def add():
   match("+")
@@ -129,10 +98,6 @@ plus_minus = {
   "+": add,
   "-": subtract
 }
-
-
-
-#######BNF
 #parse and translate an expression
 #<expression> ::= <term> [<addop><term]*
 def expression():
