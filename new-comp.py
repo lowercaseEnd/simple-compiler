@@ -1,4 +1,11 @@
 import sys
+import string
+
+table = {}
+
+def initTable():
+  global table
+  table = dict((key, 0) for key in string.ascii_lowercase)
 
 #const TAB = ^I;
 #carriage return
@@ -37,6 +44,7 @@ def emitLn(string):
 #initialize program
 def init():
   getChar()
+  initTable()
 
 #lookahead char
 look = ""
@@ -63,81 +71,49 @@ def getName():
 
 #get number
 def getNum():
+  value = 0
   if not isDigit(look):
     expected("Integer")
-  num = look
-  getChar()
-  return num
+  while isDigit(look):
+    value = 10 * value + ord(look) - ord("0")
+    getChar()
+  return value
 
-#recognize and translate an add and subtract
-def add():
-  match("+")
-  term()
-  emitLn("ADD (SP)+,D0")
-
-def subtract():
-  match("-")
-  term()
-  emitLn("SUB (SP)+,D0")
-  emitLn("NEG D0")
-
-#recognize and translate multiply and divide
-def multiply():
-  match("*")
-  factor()
-  emitLn("MULS (SP)+,D0")
-
-def divide():
-  match("/")
-  factor()
-  emitLn("MOVE (SP)+,D1")
-  emitLn("DIVS D1,D0")
-
-#dict of ops
-plus_minus = {
-  "+": add,
-  "-": subtract
-}
 #parse and translate an expression
 #<expression> ::= <term> [<addop><term]*
 def expression():
+  value = 0
   if isAddop(look):
-    emitLn("CLR D0")
+    value = 0
   else:
-    term()
+    value = term()
   while isAddop(look):
-    emitLn("MOVE D0,-(SP)")
-    if(look == "+"):
-      add()
-    elif(look == "-"):
-      subtract()
-    # else:
-      # expected("Addop")
-  # global plus_minus
-  # plus_minus.get(look, expected("Addop"))()
-
+    if look == "+":
+      match("+")
+      value += term()
+    # elif look == "-":
+    else:
+      match("-")
+      value -= term()
+  return value
 #parse and translate an assignment statement
 def assignment():
   name = getName()
   match("=")
-  expression()
-  emitLn(f"LEA {name}(PC),A0")
-  emitLn("MOVE D0,(A0)")
-
+  table[name] = expression()
 
 #<term> ::= <factor> [<mulop><factor>]*
 #parse and translate a math expression
 def term():
-  factor()
+  value = factor()
   while look in ["*", "/"]:
-    emitLn("MOVE D0,-(SP)")
     if(look == "*"):
-      multiply()
-    elif(look == "/"):
-      divide()
-    # else:
-      # expected("Mulop")
-
+      match("*")
+      value *= factor()
+    else:
+      match("/")
+      value /= factor()
+  return value
 #parse and translate a math factor
 #<factor> ::= <number> |(expression) | variable
 def factor():
@@ -146,11 +122,9 @@ def factor():
     expression()
     match(")")
   elif isAlpha(look):
-    # emitLn(f"MOVE {getName()}(PC),D0")
-    ident()
+    return table[getName()]
   else:
-    emitLn(f"MOVE #{getNum()},D0")
-    
+    return getNum()
 #parse and translate an id
 #<ident> ::= <expression>
 def ident():
@@ -162,10 +136,36 @@ def ident():
   else:
     emitLn(f"MOVE {name}(PC),D0")
 
+#recognize and skip over a newline
+def newLine():
+  if look == "\r":
+    getChar()
+    if look == "\n":
+      getChar()
+
+#input
+def inputRoutine():
+  match("?")
+  table[getName()] = input("Enter a variable ")
+
+#output
+def output():
+  match("!")
+  print(table[getName()])
 #main
 # look = "+"
 # print(plus_minus.get(look, "nothing")())
 init()
-assignment()
+# print(assignment())
+while not look == ".":
+  if look == "?":
+    inputRoutine()
+  elif look == "!":
+    output()
+  else:
+    assignment()
+  newLine()
+
+# print(expression())
 if look != CR:
   expected("Newline")

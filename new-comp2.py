@@ -4,7 +4,6 @@ import sys
 #carriage return
 CR = "\n"
 
-########error messages
 #report an error
 def error(err):
   print("\n")
@@ -19,11 +18,6 @@ def abort(err):
 def expected(str):
   abort(str + " expected")
 
-
-########recognizers
-#recognize an alphanum
-def isAlphaNum(char):
-  return isAlpha(char) or isDigit(char)
 #recognize an alpha char
 def isAlpha(char):
   return ord(str.lower(char)) in range(ord("a"), ord("z") + 1)
@@ -33,11 +27,6 @@ def isDigit(num):
 #recognize an addop
 def isAddop(char):
   return char in ["+", "-"]
-#recognize white space
-def isSpace(char):
-  return char in(" ", "\t")
-
-#######output
 #output string with a tab
 def emit(string):
   print(f"\t{string}", end = "")
@@ -45,61 +34,41 @@ def emit(string):
 def emitLn(string):
   emit(string)
   print()
-
-
-
 #initialize program
 def init():
   getChar()
-  skipSpace()
 
 #lookahead char
 look = ""
-
+lCount = 0 # label counter
 #read new char from input stream
 def getChar():
   global look
   look = input("Enter a new char: ")
-  if look == "":
-    look = "\n"
 
 #match a specific input char
 def match(x):
-  if look != x:
-    expected(f"\'{x}\'")
-  else:
+  if look == x:
     getChar()
-    skipSpace()
+  else:
+    expected(f"\'{x}\'")
 
 #get an id
 def getName():
-  token = ""
   if not isAlpha(look):
     expected("Name")
-  while isAlphaNum(look):
-    token += str.lower(look)
-    getChar()
-  skipSpace()
-  return token
+  name = str.lower(look)
+  getChar()
+  return name
 
 #get number
 def getNum():
-  value = ""
   if not isDigit(look):
     expected("Integer")
-  while isDigit(look):
-    value += look
-    getChar()
-  skipSpace()
-  return value
+  num = look
+  getChar()
+  return num
 
-
-#skip over leading white space
-def skipSpace():
-  while isSpace(look):
-    getChar()
-
-##########symbols recognizers
 #recognize and translate an add and subtract
 def add():
   match("+")
@@ -125,14 +94,10 @@ def divide():
   emitLn("DIVS D1,D0")
 
 #dict of ops
-# plus_minus = {
-#   "+": add,
-#   "-": subtract
-# }
-
-
-
-#######BNF
+plus_minus = {
+  "+": add,
+  "-": subtract
+}
 #parse and translate an expression
 #<expression> ::= <term> [<addop><term]*
 def expression():
@@ -197,7 +162,6 @@ def ident():
   else:
     emitLn(f"MOVE {name}(PC),D0")
 
-
 #<program> ::= <block> END
 #<block> ::= [<statement>]*
 #parse and translate a program
@@ -210,11 +174,65 @@ def doProgram():
 #recognize and translate a statement block
 def block():
   while not look in ["e"]:
-    other()
+    if look == "i":
+      doIf()
+    else:
+      other()
 
 #recognize and translate other
 def other():
   emitLn(getName())
+
+#generate a unique label
+def newLabel():
+  global lCount
+  string = lCount
+  lCount += 1
+  return "L" + str(string)
+
+def postLabel(label):
+  print(f"{label}:")
+
+
+#parse and translate a boolean condition
+def condition():
+  emitLn("<condition>")
+#BEQ <=> branch if false
+#BNE <=> branch if true
+#IF <condition> <block> [ELSE <block>] ENDIF
+
+
+###########syntax-directed translation
+#if
+#<condition> {L1 = newLabel
+# L2 = newLabel
+# emit(BEQ L1)}
+#<block>
+#ELSE {EMIT(BRA L2)
+# postLabel(L1) }
+#<block>
+#ENDIF {postLabel(L2)}
+
+#recognize and translate an if construct
+def doIf():
+  label = ""
+  match("i")
+  label1 = newLabel()
+  label2 = label1
+  emitLn(f"BEQ {label1}")
+  # condition()
+  # emitLn(f"BEQ {label}")
+  block()
+  if look == "l":
+    match("l")
+    label2 = newLabel()
+    emitLn(f"BRA {L2}")
+    postLabel(label1)
+    block()
+  match("e")
+  postLabel(label2)
+
+
 
 #main
 # look = "+"
@@ -222,6 +240,5 @@ def other():
 init()
 doProgram()
 # assignment()
-# expression()
 if look != CR:
   expected("Newline")
